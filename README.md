@@ -39,7 +39,7 @@ This will download the data from the first date (February 21, 2020) to the last 
 ```bash
 python src/data.py --files mitma --update
 ```
-This will look at what is the last downloaded day and download/process all subsequent days.
+This will look at what is the last downloaded day. Then it will download and process all subsequent days.
 
 To generate COVID-19 and vaccination data for Cantabria and its municipalities use:
 ```bash

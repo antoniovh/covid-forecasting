@@ -10,6 +10,7 @@ import urllib
 import json
 import pandas as pd
 import numpy as np
+import zipfile
 
 from utils import PATHS
 
@@ -22,6 +23,7 @@ def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 
+# Download odf files
 install('odfpy')
 
 
@@ -30,12 +32,12 @@ def download_ine(exp='maestra1',
                  update=False,
                  force=False):
     """
-    Download mobility data of Spain from INE (Instituto Nacional de Estadística).
+    Download and save mobility data of Spain from INE (Instituto Nacional de Estadística).
     Args:
-        exp: folder. See base_url.
-        res: folder inside exp. See base_url.
-        update: update the data as of today's date
-        force: To overwrite already downloaded data
+        exp (str): Name folder. See variable: base_url.
+        res (str): Name folder inside exp. See variable: base_url.
+        update (bool): Update the data as of today's date
+        force (bool): To overwrite already downloaded data
 
     Returns: Downloaded files in your repository and a list of path files.
 
@@ -60,7 +62,7 @@ def download_ine(exp='maestra1',
         print('Already up-to-date')
         return []
 
-    # Download files
+    # Download mobility files
     print(f'Downloading mobility files for the period {start} - {end}')
     s = requests.Session()
     base_url = 'https://opendata-movilidad.mitma.es'
@@ -74,10 +76,9 @@ def download_ine(exp='maestra1',
         fpath = rawdir / fpath
 
         if fpath.exists() and not force:
-            print(f"\t {os.path.basename(url)} already downloaded, not overwriting it."
+            print(f"\t {os.path.basename(url)} already downloaded, not overwriting it. "
                   "To overwrite it use (force=True)")
             continue
-
         try:
             resp = s.get(url, verify=False)
             if resp.status_code == 404:
@@ -91,22 +92,72 @@ def download_ine(exp='maestra1',
             print(f'Error downloading {url}')
             print(e)
 
+    # Inter-municipal relations.
+    url = f"{base_url}/relaciones_municipio_mitma.csv"
+    aux = urllib.parse.urlparse(url)
+    fpath = os.path.basename(aux.path)  # file path
+    save_fpath = PATHS.rawdir / f'{exp}' / fpath
+
+    if save_fpath.exists() and not force:
+        print(f"\t {fpath} already downloaded, not overwriting it. "
+              f"To overwrite it use (force=True)")
+    else:
+        try:
+            resp = s.get(url, verify=False)
+            if resp.status_code == 404:
+                print(f'Error downloading {url}')
+            else:
+                with open(save_fpath, 'wb') as f:
+                    f.write(resp.content)
+
+        except Exception as e:
+            print(f'Error downloading {url}')
+            print(e)
+
+    # Province codes
+    url = 'https://www.ine.es/daco/inebase_mensual/febrero_2020/relacion_municipios.zip'
+    aux = urllib.parse.urlparse(url)
+    fpath = os.path.basename(aux.path)
+    zip_fpath = PATHS.rawdir / f'{exp}' / fpath
+    prov_path = PATHS.rawdir / f'{exp}' / '20_cod_prov.xls'
+
+    if prov_path.exists() and not force:
+        print(f"\t {os.path.basename(prov_path)} already downloaded, not overwriting it. "
+              f"To overwrite it use (force=True)")
+    else:
+        try:
+            resp = s.get(url, verify=False)
+            if resp.status_code == 404:
+                print(f'Error downloading {url}')
+            else:
+                with open(zip_fpath, 'wb') as f:  # Download and save zip file
+                    f.write(resp.content)
+
+                with zipfile.ZipFile(zip_fpath) as zip:  # Extract xls file
+                    with open(prov_path, 'wb') as f:
+                        content = zip.open('DATOS/relacion_municipios_2020/20_cod_prov.xls').read()
+                        f.write(content)
+                os.remove(zip_fpath)  # Delete zip file
+
+        except Exception as e:
+            print(f'Error downloading {url}')
+            print(e)
+
     return files
 
 
 def download_sc(subject='historico'):
     """
-    Download covid-19 data of Cantabria (Spain) from Cantabrian Health Service.
+    Download and save covid-19 data of Cantabria (Spain) from Cantabrian Health Service.
     Args:
-        subject: Type of file you want to download. Options: historico, municipalizado, edadysexo.
+        subject (str): Type of file you want to download. Options: historico, municipalizado, edadysexo.
                     See base_url because this variable is important for the url.
 
-    Returns: Downloaded files in your repository and a list of path files.
+    Returns: DataFrame of historical covid-19 data from Cantabria.
 
     """
 
     # Prepare output dir
-    files = []
     rawdir = PATHS.rawdir / 'covid' / 'region'
     rawdir.exists() or os.makedirs(rawdir)
 
@@ -117,22 +168,31 @@ def download_sc(subject='historico'):
 
     aux = urllib.parse.urlparse(url)
     fpath = os.path.basename(aux.path)  # file path
-    fpath = rawdir / fpath
+    raw_fpath = rawdir / fpath
 
     try:
         resp = s.get(url, verify=False)
         if resp.status_code == 404:
             print('File not available')
+        else:
+            with open(raw_fpath, 'wb') as f:
+                f.write(resp.content)
 
-        with open(fpath, 'wb') as f:
-            f.write(resp.content)
-        files.append(fpath)
+            df = pd.read_csv(raw_fpath,
+                             sep=';')
+            dates_format = np.repeat("%d/%m/%Y", len(df.index), axis=0)
+            df['FECHA'] = list(map(datetime.datetime.strptime, df['FECHA'], dates_format))
+            dates_format = np.repeat("%Y/%m/%d", len(df.index), axis=0)
+            df['FECHA'] = list(map(datetime.datetime.strftime, df['FECHA'], dates_format))
+            df.set_index('FECHA', inplace=True)
+            df.to_csv(f'{rawdir}/historical_cantb.csv', index=True, header=True)
+            os.remove(raw_fpath)
+
+            return df
 
     except Exception as e:
         print(f'Error downloading {url}')
         print(e)
-
-    return files
 
 
 def download_json(territory, name_var, file_path):
@@ -147,7 +207,7 @@ def download_json(territory, name_var, file_path):
         name_var (str): Name of variable and the downloaded file.
         file_path (str): Path to save the file.
 
-    Returns: DataFrame of downloaded file.
+    Returns: DataFrame of covid-19 data.
 
     """
 
@@ -177,8 +237,7 @@ def download_json(territory, name_var, file_path):
         else:
             nvar = len(file_json['dimension']['Variables']['category']['index'])  # Number of variables
             names = list(file_json['dimension']['Variables']['category']['index'].keys())  # Name of variables
-        values = np.array(file_json['value'], dtype='float')  # Values of all variables
-        values = np.absolute(values)  # Process data a little
+        values = np.array(file_json['value'], dtype=float)  # Values of all variables
         values = values.reshape((len(dates), nvar))  # Correct format
         file = pd.DataFrame(values,
                             columns=names,
@@ -188,6 +247,7 @@ def download_json(territory, name_var, file_path):
         else:
             nmun = territory.split(" - ")[1].replace(" ", "_")
             file.to_csv(f'{file_path}/{name_var}_{nmun}.csv', index=True, header=True)
+
         return file
 
     except Exception as e:
@@ -198,7 +258,7 @@ def download_json(territory, name_var, file_path):
 def vaccine(date):
     """
     Auxiliary function.
-    Download data about vaccination in Cantabria  from the Ministry of Health, Consumer Affairs and Social Welfare.
+    Download data about vaccination in Cantabria from the Ministry of Health, Consumer Affairs and Social Welfare.
     https://www.mscbs.gob.es
     Args:
         date(str): Date in format %Y%m%d
@@ -217,6 +277,7 @@ def vaccine(date):
         vcant = file_vaccine.loc['Cantabria']
         vcant = pd.DataFrame(vcant).T
         vcant.index = [datetime.datetime.strptime(date, "%Y%m%d").strftime("%Y/%m/%d")]
+
         return vcant
 
     except Exception as e:
@@ -248,24 +309,23 @@ def download_icane(exp='region',
     files = []
     rawdir = PATHS.rawdir / 'covid' / f'{exp}'
     rawdir.exists() or os.makedirs(rawdir)
-    processdir = PATHS.processed / 'covid' / f'{exp}'
-    processdir.exists() or os.makedirs(processdir)
 
     if exp == 'region':
-        print(f'Downloading covid-19 data of Cantabria from ICANE.')
 
         if variable == 'all':
+            print(f'Downloading covid-19 data of Cantabria from ICANE.')
             name_var = ['daily-cases', 'daily-deceases', 'daily-discharged', 'accumulated', 'daily-test',
-                        'hospitalizations', 'ucis', 'incidence', 'rho']
+                        'hospitalizations', 'ucis', 'incidence', 'rho', 'positivity']
             fpath = np.repeat(rawdir, len(name_var), axis=0)
             exp = np.repeat(exp, len(name_var), axis=0)
-            covid_cant = list(map(download_json, exp, tqdm(name_var), fpath))
+            covid_cant = list(map(download_json, exp, tqdm(name_var, total=(len(name_var)-1)), fpath))
             covid_cant = pd.concat(covid_cant, axis=1)
+            print(f'Downloading vaccination data from Cantabria.')
             vac_cant = download_icane(exp='region', variable='vaccine')
             file_all = pd.concat([covid_cant, vac_cant], axis=1)
             # Save all variables of Cantabria
             file_all.to_csv(f'{rawdir}/all_data_cantb.csv', index=True, header=True)
-            file_all.to_csv(f'{processdir}/all_data_cantb.csv', index=True, header=True)
+
             return file_all
 
         elif variable == 'vaccine':
@@ -277,11 +337,12 @@ def download_icane(exp='region',
             file_vaccines = pd.concat(vaccines)
             # Save vaccination data
             file_vaccines.to_csv(f'{rawdir}/vaccine_cantb.csv', index=True, header=True)
-            file_vaccines.to_csv(f'{processdir}/vaccine_cantb.csv', index=True, header=True)
+
             return file_vaccines
 
         else:
             file_var = download_json(exp, variable, rawdir)
+
             return file_var
 
     elif exp == 'mpio':
@@ -319,7 +380,6 @@ def download_icane(exp='region',
 
         if variable == 'all':  # All municipalities and all variables
             name_var = ["casos-diarios", "fallecidos", "incidencia14", "incidencia7"]
-
             fpath = np.repeat(rawdir, len(name_mun), axis=0)
             for mun in tqdm(name_mun):
                 nmun = mun.split(" - ")[1].replace(" ", "_")
@@ -327,9 +387,9 @@ def download_icane(exp='region',
                 covid_mun = list(map(download_json, muni, name_var, fpath))
                 covid_mun = pd.concat(covid_mun, axis=1)
                 covid_mun.to_csv(f'{rawdir}/all_data_{nmun}.csv', index=True, header=True)
-                covid_mun.to_csv(f'{processdir}/all_data_{nmun}.csv', index=True, header=True)
                 files.append(covid_mun)
             return files.append
+
         else:  # All municipalities and 1 variable
             fpath = np.repeat(rawdir, len(name_mun), axis=0)
             var = np.repeat(variable, len(name_mun), axis=0)
@@ -338,14 +398,12 @@ def download_icane(exp='region',
     else:
         if variable == 'all':  # 1 mun and all variables
             name_var = ["casos-diarios", "fallecidos", "incidencia14", "incidencia7"]
-
             fpath = np.repeat(rawdir, len(name_var), axis=0)
             mun = np.repeat(exp, len(name_var), axis=0)
             covid_mun = list(map(download_json, tqdm(mun), name_var, fpath))
             covid_mun = pd.concat(covid_mun, axis=1)
             nmun = exp.split(" - ")[1].replace(" ", "_")
             covid_mun.to_csv(f'{rawdir}/all_data_{nmun}.csv', index=True, header=True)
-            covid_mun.to_csv(f'{processdir}/all_data_{nmun}.csv', index=True, header=True)
             return covid_mun
 
         else:  # 1 mun and 1 variable
@@ -354,9 +412,9 @@ def download_icane(exp='region',
 
 
 if __name__ == '__main__':
-    download_ine()
-    download_sc()
+    # download_ine()
+    # download_sc()
     download_icane(exp="region",
                    variable='all')
-    download_icane(exp="mpio",
-                   variable='all')
+    # download_icane(exp="mpio",
+    #                variable='all')

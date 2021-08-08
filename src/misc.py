@@ -20,7 +20,8 @@ from utils import PATHS
 
 def fix_1207():
     """
-    Fix error in original dataset (see README)
+    Fix error in mobility dataset of Spain from INE (Instituto Nacional de Estadística).
+
     """
     rawdir = PATHS.rawdir / 'maestra1' / 'municipios'
     src = rawdir / '20200705_maestra_1_mitma_municipio.txt.gz'

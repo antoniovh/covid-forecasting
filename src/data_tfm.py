@@ -1,14 +1,12 @@
 import click
-from misc import fix_1207
-# from process import process
+import pandas as pd
+from process import fix_1207, process_mobility
 
 from download import download_ine, download_sc, download_icane
-# from flowmapblue import generate_flowmapblue
 
 
 @click.command()
-@click.option('--files', default='all', help="Download mobility and COVID-19 data. "
-                                             "Options: all, mitma, covid.")
+@click.option('--files', default='mitma', help="Download mobility and COVID-19 data. Options: all, mitma, covid.")
 @click.option('--update', '-u', is_flag=True, help="Update current files without overwriting.")
 def data(files, update):
     if update:
@@ -22,12 +20,11 @@ def data(files, update):
                                  update=update,
                                  force=False)
         fix_1207()
-        # process(day_files=files_ine,
-        #         exp='maestra1',
-        #         res='municipios',
-        #         update=update,
-        #         force=False)
-        # # generate_flowmapblue()
+        process_mobility(day_files='all',
+                         exp='maestra1',
+                         res='municipios',
+                         update=update,
+                         force=False)
 
     elif files == 'covid':
         files_covid_hist = download_sc(subject='historico')
@@ -42,6 +39,11 @@ def data(files, update):
                                  update=update,
                                  force=False)
         fix_1207()
+        process_mobility(day_files='all',
+                         exp='maestra1',
+                         res='municipios',
+                         update=update,
+                         force=False)
         files_covid_hist = download_sc(subject='historico')
         files_covid_cant = download_icane(exp="region",
                                           variable='all')
