@@ -26,7 +26,7 @@ Data obtained from:
 
 ## Generate the data
 
-To generate mobility and COVID-19 data from scratch use:
+To generate and process mobility and COVID-19 data from scratch use:
 ```bash
 python src/data.py
 python src/data.py --files all
@@ -45,4 +45,4 @@ To generate COVID-19 and vaccination data for Cantabria and its municipalities u
 ```bash
 python src/data.py --files covid
 ```
-All the files will be stored in the folder ``data/raw``.
+Downloaded files will be stored in the folder ``data/raw`` and processed files in ``data/processed``.

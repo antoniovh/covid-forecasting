@@ -238,6 +238,7 @@ def download_json(territory, name_var, file_path):
             nvar = len(file_json['dimension']['Variables']['category']['index'])  # Number of variables
             names = list(file_json['dimension']['Variables']['category']['index'].keys())  # Name of variables
         values = np.array(file_json['value'], dtype=float)  # Values of all variables
+        values = np.absolute(values)
         values = values.reshape((len(dates), nvar))  # Correct format
         file = pd.DataFrame(values,
                             columns=names,
@@ -412,9 +413,9 @@ def download_icane(exp='region',
 
 
 if __name__ == '__main__':
-    # download_ine()
-    # download_sc()
+    download_ine()
+    download_sc()
     download_icane(exp="region",
                    variable='all')
-    # download_icane(exp="mpio",
-    #                variable='all')
+    download_icane(exp="mpio",
+                   variable='all')

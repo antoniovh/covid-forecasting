@@ -215,31 +215,37 @@ def process_sc(*argv):
                                 'FALLECIDOS': 'cumulative_deaths',
                                 'TOTAL TEST': 'cumulative_total_tests'})
         # New variables
-        # Hospital occupancy
+        # daily deaths
+        df['daily_deaths'] = df['cumulative_deaths'].fillna(0).diff()
+        # daily occupancy of hospital beds
         newhosp = df['hospital_occ'].fillna(0).diff()
         newhosp[newhosp < 0] = 0
         df['new_hospital_cases'] = newhosp
-        # ICU occupancy
+        # daily occupancy of ICU beds
         newicu = df['icu_occ'].fillna(0).diff()
         newicu[newicu < 0] = 0
         df['new_icu_cases'] = newicu
-        # Daily total tests
+        # daily total tests
         df['daily_total_tests'] = df['cumulative_total_tests'].fillna(0).diff()
-        # Total cases in 7 and 14 days
+        # total cases in 7 and 14 days
         cases7 = df['cumulative_cases'].to_numpy()[7:] - df['cumulative_cases'].to_numpy()[:-7]
         df['cases7'] = np.append(np.repeat(0, 7), cases7)
         cases14 = df['cumulative_cases'].to_numpy()[14:] - df['cumulative_cases'].to_numpy()[:-14]
         df['cases14'] = np.append(np.repeat(0, 14), cases14)
-        # Daily positivity
-        df['daily_positivity'] = df['daily_cases'] / df['daily_total_tests']
-        df['daily_positivity'] = df['daily_positivity'].apply(np.ceil)
-        # Cumulative incidence in 7 and 14 days
+        # cumulative incidence in 7 and 14 days
         df['incidence7'] = df['cases7'] * 100000 / cant_popul
         df['incidence7'] = df['incidence7'].apply(np.ceil)
         df['incidence14'] = df['cases14'] * 100000 / cant_popul
         df['incidence14'] = df['incidence14'].apply(np.ceil)
 
+        # Fix some issues
         df = df.fillna(0)
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(np.int64)
+
+        # daily positivity
+        df['daily_positivity'] = df['daily_cases'] / df['daily_total_tests']
+        df['daily_positivity'] = df['daily_positivity'].fillna(0)
+        df.loc[0, 'daily_positivity']=0
 
         # Save
         df.to_csv(f'{save_path}', index=False, header=True)
@@ -280,7 +286,8 @@ def process_icane(*argv):
                  'Dosis administradas (2)', '% sobre entregadas',
                  'Fecha de la última vacuna registrada (2)',
                  'Dosis entregadas AstraZeneca (1)', 'Nº Personas con al menos 1 dosis',
-                 'Dosis entregadas Janssen (1)', 'UCI Sierrallana', 'UCI Valdecilla', 'Positividad'],
+                 'Dosis entregadas Janssen (1)', 'UCI Sierrallana', 'UCI Valdecilla', 'Positividad',
+                 'Incidencia 14 dias'],
                 axis='columns', inplace=True)
 
         df = df.rename(columns={'Unnamed: 0': 'date',
@@ -293,24 +300,37 @@ def process_icane(*argv):
                                 'Nº Personas vacunadas(pauta completada)': 'vaccinated_pp',
                                 'Test Anticuerpos diarios': 'daily_antibody_tests',
                                 'Test Antigenos diarios': 'daily_antigen_tests',
-                                'Test PCR diarios': 'daily_pcr_tests',
-                                'Incidencia 14 dias': 'incidence_14'})
+                                'Test PCR diarios': 'daily_pcr_tests'})
 
         # New variables
-        # Total cases in 7 and 14 days
+        # total cases in 7 and 14 days
         cases7 = df['cumulative_cases'].to_numpy()[7:] - df['cumulative_cases'].to_numpy()[:-7]
         df['cases7'] = np.append(np.repeat(0, 7), cases7)
         cases14 = df['cumulative_cases'].to_numpy()[14:] - df['cumulative_cases'].to_numpy()[:-14]
         df['cases14'] = np.append(np.repeat(0, 14), cases14)
-        # Cumulative incidence in 7 and 14 days
+        # cumulative incidence in 7 and 14 days
         df['incidence7'] = df['cases7'] * 100000 / cant_popul
         df['incidence7'] = df['incidence7'].apply(np.ceil)
         df['incidence14'] = df['cases14'] * 100000 / cant_popul
         df['incidence14'] = df['incidence14'].apply(np.ceil)
+        # daily occupancy of hospital beds
+        newhosp = df['hospital_occ'].fillna(0).diff()
+        newhosp[newhosp < 0] = 0
+        df['new_hospital_cases'] = newhosp
+        # daily occupancy of ICU beds
+        newicu = df['icu_occ'].fillna(0).diff()
+        newicu[newicu < 0] = 0
+        df['new_icu_cases'] = newicu
 
         # Fix some empty value errors
         df.iloc[0, 1] = 10.0
         df = df.fillna(0)
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(np.int64)
+
+        # daily positivity
+        df['daily_positivity'] = df['daily_cases'] / df['daily_total_tests']
+        df['daily_positivity'] = df['daily_positivity'].fillna(0)
+        df.loc[0, 'daily_positivity'] = 0
 
         # Save
         df.to_csv(f'{save_path}', index=False, header=True)
@@ -322,12 +342,14 @@ def process_icane(*argv):
         print(e)
         raise Exception(e)
 
+    # TODO: Process covid-19 data of the municipalities.
+
 
 if __name__ == '__main__':
-    # process_mobility(day_files='all',
-    #                  exp='maestra1',
-    #                  res='municipios',
-    #                  update=False,
-    #                  force=False)
+    process_mobility(day_files='all',
+                     exp='maestra1',
+                     res='municipios',
+                     update=False,
+                     force=False)
     process_sc()
     process_icane()
