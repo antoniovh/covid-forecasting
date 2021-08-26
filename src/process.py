@@ -323,7 +323,7 @@ def process_icane(*argv):
         df['new_icu_cases'] = newicu
 
         # Fix some empty value errors
-        df.iloc[0, 1] = 10.0
+        df.iloc[0, 1] = 1.0
         df = df.fillna(0)
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(np.int64)
 

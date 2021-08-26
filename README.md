@@ -1,7 +1,6 @@
 Covid19 - TFM
 ===========
-Implementation of Machine Learning models to forecast epidemic spread, ICU beds and deaths caused by COVID-19 in
-Cantabria. Using mobility and daily COVID-19 data.
+Implementation of Machine Learning models to forecast epidemic spread, ICU beds and deaths caused by COVID-19 in Cantabria. Using mobility and daily COVID-19 data.
 
 This project has been based on:
 1. https://github.com/IFCA/mitma-covid

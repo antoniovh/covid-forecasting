@@ -1,32 +1,66 @@
-import tensorflow as tf
+import pandas as pd
+from math import sqrt
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error, r2_score
 
 
 def make_splits(df,
-                ptrain=0.8,
-                pval=0.15,
-                ptest=0.05):
+                target,
+                time_step=0,
+                ntrain=0.8,
+                nval=0.15,
+                ntest=0.05):
     """
     Split the dataframe in train, validation and test dataframe.
+    For models not autoregressive, it is necessary to modify the target variable to create lagged
+    obersvations in order to predict the n future instants.
+    These models will try to find dependent relationships between the target y(t+n) and the features x(t).
+
     Args:
         df: DataFrame
-        ptrain: Size for the training dataframe.
-        pval: Size for the validation dataframe.
-        ptest: Size for the test dataframe.
+        target: Target variable.
+        time_step: Number of lags.
+        ntrain: Size for the training dataframe.
+        nval: Size for the validation dataframe.
+        ntest: Size for the test dataframe.
 
-    Returns: Dict with training, validation and test dataframe.
+    Returns: Dict splited into training, validation and test dataframe. Also into features and target.
+            {train:{X: , y: }, val:{X: , y: }, test:{X: , y: }}
 
     """
+    # Target variable
+    df = df.copy()
+    y_target = df[target].shift(-int(time_step))
+    target_t = f'{target}_(t+{time_step})'
+    df[target_t] = y_target
+    df = df.drop(columns=[target])
+    # Keep only rows with non-NANs
+    df = df[~df.isna().any(axis='columns')]
 
+    # split into train, val, test datasets.
     n = len(df)
-    train_df = df[0:int(n * ptrain)]
-    val_df = df[int(n * ptrain):int(n * (ptrain + pval))]
-    test_df = df[int(n * ptest):]
-    split_df = {'train': train_df, 'val': val_df, 'test': test_df}
+    train_df = df[0:int(n * ntrain)]
+    val_df = df[int(n * ntrain):int(n * (ntrain + nval))]
+    test_df = df[int(n * (1 - ntest)):]
+    # split into features and target variables.
+    x_train = train_df.drop(columns=target_t)
+    x_val = val_df.drop(columns=target_t)
+    x_test = test_df.drop(columns=target_t)
+    y_train = train_df[target_t]
+    y_val = val_df[target_t]
+    y_test = test_df[target_t]
 
-    return split_df
+    splits_df = {'train': {}, 'val': {}, 'test': {}}
+    splits_df['train']['X'] = x_train
+    splits_df['train']['y'] = y_train
+    splits_df['val']['X'] = x_val
+    splits_df['val']['y'] = y_val
+    splits_df['test']['X'] = x_test
+    splits_df['test']['y'] = y_test
+
+    return splits_df
 
 
-def normalize(split_df):
+def normalize(splits):
     """
     Normalize training, validation and test dataframe.
     Before training a deep learning model, it is important to scale features. Normalization is a common way of doing
@@ -36,85 +70,87 @@ def normalize(split_df):
             access to the values in the validation and test sets.
 
     Args:
-        split_df: Dictionary with training, validation and test dataframe without normalization.
+        splits: Dictionary with training, validation and test dataframe without normalization.
 
-    Returns: Dictionary with training, validation and test dataframe after normalization. And the mean and std used in
-            the process.
+    Returns: Dictionary with training, validation and test dataframe after normalization.
+            And the mean and std used in the process.
 
     """
-    train_df = split_df['train']
-    val_df = split_df['val']
-    test_df = split_df['test']
+    mean = splits['train']['X'].mean()
+    std = splits['train']['X'].std()
 
-    train_mean = train_df.mean()
-    train_std = train_df.std()
+    for i in ['train', 'val', 'test']:
+        splits[i]['X'] = (splits[i]['X'] - mean) / std
 
-    train_df = (train_df - train_mean) / train_std
-    val_df = (val_df - train_mean) / train_std
-    test_df = (test_df - train_mean) / train_std
+    norm = pd.DataFrame([mean, std], index=['mean', 'std']).T
 
-    split_ndf = {'train': train_df, 'val': val_df, 'test': test_df, 'mean': train_mean, 'std': train_std}
-
-    return split_ndf
+    return splits, norm
 
 
-def denormalize(split_ndf):
+def denormalize(splits, norm):
     """
     Denormalize training, validation and test dataframe.
     Args:
-        split_ndf: Dictionary with training, validation and test normalized dataframe.
+        splits: Dictionary with training, validation and test normalized dataframe.
+        norm: DataFrame with the parameters used in normalization process.
 
     Returns: Dictionary with training, validation and test dataframe before normalization.
 
     """
+    mean = norm['mean']
+    std = norm['std']
 
-    train_df = split_ndf['train']
-    val_df = split_ndf['val']
-    test_df = split_ndf['test']
+    for i in ['train', 'val', 'test']:
+        splits[i]['X'] = splits[i]['X'] * std + mean
 
-    train_mean = split_ndf['mean']
-    train_std = split_ndf['std']
-
-    train_df = train_df * train_std + train_mean
-    val_df = val_df * train_std + train_mean
-    test_df = test_df * train_std + train_mean
-
-    split_df = {'train': train_df, 'val': val_df, 'test': test_df}
-
-    return split_df
+    return splits
 
 
-def compile_and_fit_wg(model, window, patience=3, max_epoch=30):
+def model_summary(model, splits):
     """
-    Compile and fit the models. This function is used with WindowGenerator Object, df.data Datasets and DL models.
-    Some ML models need 'x' (features_train) and 'y' (target) to be trained, if you use a Dataset you get an error.
+    Calculate predictions and evaluate the errors with some metrics .
+    Calculate the Mean Absolute Error, Mean Absolute Percentage Error, Mean Square Erro and R^2 score.
+
     Args:
-        model: Model to fit.
-        window: WindowGenerator Object that contains training, validation and test tf.data Dataset
-        patience: Argument for early stopping to avoid overfitting.
-            Number of epochs to wait before early stop if no progress on the validation set.
-        max_epoch: Max epochs to train the model.
+        model: Trained model used to predict.
+        splits: Dictionary with training, validation and test data.
 
-    Returns:
-        History object that provides a clean observation of the performance of deep learning models over
-        time during training. Metrics are stored in a dictionary in the history member of the object returned.
-        It is useful to plot metrics (accuracy, loss) of Training and Validation Datasets over training time.
-
+    Return: Dictionary with the metrics of each dataframe (train, val, test).
     """
-    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                      patience=patience,
-                                                      mode='min')
 
-    model.compile(loss=tf.losses.MeanSquaredError(),
-                  optimizer=tf.optimizers.Adam(),
-                  metrics=[tf.metrics.MeanAbsoluteError()])
+    metrics = {'rmse': {}, 'mse': {}, 'mae': {}, 'mape': {}, 'r2': {}}
 
-    history = model.fit(window.train,
-                        epochs=max_epoch,
-                        validation_data=window.val,
-                        callbacks=[early_stopping])
+    for i in ['train', 'val', 'test']:
+        x_t = splits[i]['X']
+        y_t = splits[i]['y']
 
-    return history
+        try:
+            if len(x_t) != 0:
+                y_p = model.predict(x_t)
+
+                # Metrics
+                mse = mean_squared_error(y_true=y_t,
+                                         y_pred=y_p,
+                                         squared=False)
+                rmse = sqrt(mse)
+                mae = mean_absolute_error(y_true=y_t,
+                                          y_pred=y_p)
+                mape = mean_absolute_percentage_error(y_true=y_t,
+                                                      y_pred=y_p)
+                r2 = r2_score(y_t, y_p)
+
+                metrics['rmse'][i] = rmse
+                metrics['mae'][i] = mae
+                metrics['mape'][i] = mape
+                metrics['mse'][i] = mse
+                metrics['r2'][i] = r2
+
+                df_metrics = pd.DataFrame.from_dict(metrics, orient='index')
+
+        except Exception as e:
+            print(e)
+
+    return metrics, df_metrics
 
 
 def my_map(fun1, obj, iterlist):
@@ -137,4 +173,3 @@ def my_map(fun1, obj, iterlist):
         """
         return fun1(obj, x)
     return map(fun2, iterlist)
-
