@@ -171,7 +171,7 @@ metrics['GLM'] = glm_metrics
 print("GLM metrics:\n", glm_metrics)
 # Graph
 model_plot(glm_model, split_ndf)
-fig_path = figures_path / 'GLM.svg'
+fig_path = figures_path / 'glm.svg'
 plt.savefig(fig_path)
 plt.close()
 # Save the trained model as a pickle string.
@@ -203,7 +203,7 @@ param_grid = {
 rf = RandomForestRegressor()
 grid_search = GridSearchCV(estimator=rf,
                            param_grid=param_grid,
-                           n_jobs=-1,
+                           # n_jobs=-1,
                            cv=3,
                            verbose=1)
 # Search best model
@@ -261,7 +261,7 @@ param_grid = {"C": [1e-1, 1e0, 1e1, 1e2],
 svr = SVR(kernel='rbf')
 grid_search = GridSearchCV(estimator=svr,
                            param_grid=param_grid,
-                           n_jobs=-1,
+                           # n_jobs=-1,
                            cv=5,
                            verbose=1)
 # Search best model
@@ -321,7 +321,7 @@ param_grid = {"alpha": [30, 10, 1e0, 0.1, 1e-2, 1e-3],
 krr = KernelRidge(kernel='sigmoid')
 grid_search = GridSearchCV(estimator=krr,
                            param_grid=param_grid,
-                           n_jobs=-1,
+                           # n_jobs=-1,
                            cv=5,
                            verbose=1)
 # Search best model
@@ -371,7 +371,7 @@ param_grid = {"n_neighbors": list(range(1, 30, 1))}
 knn = KNeighborsRegressor()
 grid_search = GridSearchCV(estimator=knn,
                            param_grid=param_grid,
-                           n_jobs=-1,
+                           # n_jobs=-1,
                            cv=5,
                            verbose=1)
 # Search best model
@@ -422,7 +422,7 @@ param_grid = {"n_estimators": [5, 10, 50, 100, 200, 300, 1000],
 gb = GradientBoostingRegressor(random_state=0, loss='ls')
 grid_search = GridSearchCV(estimator=gb,
                            param_grid=param_grid,
-                           n_jobs=-1,
+                           # n_jobs=-1,
                            cv=5,
                            verbose=1)
 # Search best model
