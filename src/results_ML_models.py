@@ -78,8 +78,8 @@ warnings.filterwarnings("ignore")
 # 
 # To generate and process regional COVID-19 data from scratch use:
 # ```bash
-# python src/data.py
-# python src/data.py --files covid
+# python src/data_tfm.py
+# python src/data_tfm.py --files covid
 # ```
 # The dataset to be used is located in ./data/processed/covid/region/all_data_cantb.csv.
 # This dataset contains 20 different features such as daily positive cases, daily deaths, hospital and

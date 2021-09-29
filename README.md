@@ -1,5 +1,7 @@
 Covid19 - TFM
 ===========
+[![DOI](https://zenodo.org/badge/387005381.svg)](https://zenodo.org/badge/latestdoi/387005381)
+
 Implementation of Machine Learning models to forecast epidemic spread, ICU beds and deaths caused by COVID-19 in Cantabria. Using mobility and daily COVID-19 data.
 
 This project has been based on:
@@ -27,21 +29,22 @@ Data obtained from:
 
 To generate and process mobility and COVID-19 data from scratch use:
 ```bash
-python src/data.py
-python src/data.py --files all
+python src/data_tfm.py
+python src/data_tfm.py --files all
 ```
 To generate only mobility data:
 ```bash
-python src/data.py --files mitma
+python src/data_tfm.py --files mitma
 ```
 This will download the data from the first date (February 21, 2020) to the last date of the study (May 09, 2021) and process it. If you already have the data downloaded and processed from a previous time and just want to update it with the recent data, you can use:
 ```bash
-python src/data.py --files mitma --update
+python src/data_tfm.py --files mitma --update
 ```
 This will look at what is the last downloaded day. Then it will download and process all subsequent days.
 
 To generate COVID-19 and vaccination data for Cantabria and its municipalities use:
 ```bash
-python src/data.py --files covid
+python src/data_tfm.py --files covid
 ```
 Downloaded files will be stored in the folder ``data/raw`` and processed files in ``data/processed``.
+

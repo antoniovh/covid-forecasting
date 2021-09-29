@@ -197,15 +197,31 @@ def process_sc(*argv):
             df = pd.read_csv(fpath, sep=',')
 
         df = df.fillna(0)
-        df.drop(['% CRECIMIENTO COVID*', 'CASOS RESIDENCIAS', 'C. RESID. ACTIVOS', 'PROF. SANITARIOS',
-                 'P. SANIT. ACTIVOS', 'HOSP. VALDECILLA', 'HOSP. LIENCRES', 'HOSP. LAREDO',
+        df.drop(['% CRECIMIENTO COVID*',
+                 'CASOS RESIDENCIAS',
+                 'C. RESID. ACTIVOS',
+                 'PROF. SANITARIOS',
+                 'P. SANIT. ACTIVOS',
+                 'HOSP. VALDECILLA',
+                 'HOSP. LIENCRES',
+                 'HOSP. LAREDO',
                  'HOSP. SIERRALLANA',
-                 'HOSP. TRES MARES', 'UCI HUMV', 'UCI SIERRALLANA', 'TEST*100.000 HAB.',
+                 'HOSP. TRES MARES',
+                 'UCI HUMV',
+                 'UCI SIERRALLANA',
+                 'TEST*100.000 HAB.',
                  'TEST PCR',
-                 'TEST*100.000 HAB..1', 'TEST ANTICUERPOS', 'TEST*100.000 HAB..2', 'TEST ANTICUERPOS +',
-                 'TEST ANTIGENOS', 'TEST*100.000 HAB..3', 'TEST ANTIGENOS +', 'INCIDENCIA AC 14',
+                 'TEST*100.000 HAB..1',
+                 'TEST ANTICUERPOS',
+                 'TEST*100.000 HAB..2',
+                 'TEST ANTICUERPOS +',
+                 'TEST ANTIGENOS',
+                 'TEST*100.000 HAB..3',
+                 'TEST ANTIGENOS +',
+                 'INCIDENCIA AC 14',
                  'CASOS 7 DIAS',
-                 'CASOS 14 DIAS'], axis='columns', inplace=True)
+                 'CASOS 14 DIAS'],
+                axis='columns', inplace=True)
         df = df.rename(columns={'FECHA': 'date',
                                 'TOTAL CASOS': 'cumulative_cases',
                                 'CASOS NUEVOS PCR*': 'daily_cases',
@@ -245,7 +261,7 @@ def process_sc(*argv):
         # daily positivity
         df['daily_positivity'] = df['daily_cases'] / df['daily_total_tests']
         df['daily_positivity'] = df['daily_positivity'].fillna(0)
-        df.loc[0, 'daily_positivity']=0
+        df.loc[0, 'daily_positivity'] = 0
 
         # Save
         df.to_csv(f'{save_path}', index=False, header=True)
@@ -280,13 +296,27 @@ def process_icane(*argv):
         df['daily_total_tests'] = df[['Test Anticuerpos diarios', 'Test Antigenos diarios',
                                       'Test PCR diarios']].sum(axis=1)
 
-        df.drop(['Recuperados', 'Laredo', 'Liencres', 'Sierrallana', 'Tres Mares', 'Valdecilla',
-                 'Cuantil 0,025 (R)', 'Cuantil 0,975 (R)', 'Media (R)', 'Dosis entregadas Pfizer (1)',
-                 'Dosis entregadas Moderna (1)', 'Total Dosis entregadas (1)',
-                 'Dosis administradas (2)', '% sobre entregadas',
+        df.drop(['Recuperados',
+                 'Laredo',
+                 'Liencres',
+                 'Sierrallana',
+                 'Tres Mares',
+                 'Valdecilla',
+                 'Cuantil 0,025 (R)',
+                 'Cuantil 0,975 (R)',
+                 'Media (R)',
+                 'Dosis entregadas Pfizer (1)',
+                 'Dosis entregadas Moderna (1)',
+                 'Total Dosis entregadas (1)',
+                 'Dosis administradas (2)',
+                 '% sobre entregadas',
                  'Fecha de la última vacuna registrada (2)',
-                 'Dosis entregadas AstraZeneca (1)', 'Nº Personas con al menos 1 dosis',
-                 'Dosis entregadas Janssen (1)', 'UCI Sierrallana', 'UCI Valdecilla', 'Positividad',
+                 'Dosis entregadas AstraZeneca (1)',
+                 'Nº Personas con al menos 1 dosis',
+                 'Dosis entregadas Janssen (1)',
+                 'UCI Sierrallana',
+                 'UCI Valdecilla',
+                 'Positividad',
                  'Incidencia 14 dias'],
                 axis='columns', inplace=True)
 
@@ -346,10 +376,10 @@ def process_icane(*argv):
 
 
 if __name__ == '__main__':
-    process_mobility(day_files='all',
-                     exp='maestra1',
-                     res='municipios',
-                     update=False,
-                     force=False)
+    # process_mobility(day_files='all',
+    #                  exp='maestra1',
+    #                  res='municipios',
+    #                  update=False,
+    #                  force=False)
     process_sc()
     process_icane()

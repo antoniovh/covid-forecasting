@@ -4,7 +4,7 @@ from download import download_ine, download_sc, download_icane
 
 
 @click.command()
-@click.option('--files', default='mitma', help="Download mobility and COVID-19 data. Options: all, mitma, covid.")
+@click.option('--files', default='covid', help="Download mobility and COVID-19 data. Options: all, mitma, covid.")
 @click.option('--update', '-u', is_flag=True, help="Update current files without overwriting.")
 def data(files, update):
     if update:
